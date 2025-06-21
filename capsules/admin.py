@@ -6,11 +6,10 @@ from .models import Capsule, CapsuleContent, CapsuleRecipient, DeliveryLog, Noti
 @admin.register(Capsule)
 class CapsuleAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'title', 'owner', 'delivery_date', 'is_delivered', 'privacy_status', 'is_archived'
+        'id', 'title', 'owner', 'creation_date', 'delivery_date', 'is_delivered', 'privacy_status', 'is_archived'
     )
     list_filter = ('is_delivered', 'privacy_status', 'is_archived', 'delivery_method')
     search_fields = ('title', 'owner__email', 'owner__name')
-    readonly_fields = ('creation_date',)
     date_hierarchy = 'delivery_date'
     ordering = ('-delivery_date',)
     fieldsets = (

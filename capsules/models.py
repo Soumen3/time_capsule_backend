@@ -69,7 +69,7 @@ class Capsule(models.Model):
         help_text="Optional longer description for the capsule's purpose or contents."
     )
     creation_date = models.DateTimeField(
-        auto_now_add=True,
+        default=timezone.now,
         help_text="The exact date and time the capsule was created."
     )
     # delivery_date stores both date and time
