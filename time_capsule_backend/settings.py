@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from decouple import config
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
     'capsules',
     'django_celery_beat',  # For periodic tasks
     'django_celery_results',  # For storing Celery task results
+    'django_cleanup.apps.CleanupConfig', # Add this
 ]
 
 MIDDLEWARE = [
@@ -82,14 +84,15 @@ WSGI_APPLICATION = 'time_capsule_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+tmpPostgres = urlparse(config('DATABASE_URL'))
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='time_capsule_db'),
-        'USER': config('DB_USER', default='postgres_user'),
-        'PASSWORD': config('DB_PASSWORD', default='postgres_password'),
-        'HOST': config('DB_HOST', default='localhost'), # Or your DB host
-        'PORT': config('DB_PORT', default='5432'),     # Default PostgreSQL port
+        'NAME': tmpPostgres.path.replace('/', ''),
+        'USER': tmpPostgres.username,
+        'PASSWORD': tmpPostgres.password,
+        'HOST': tmpPostgres.hostname,
+        'PORT': 5432,
     }
 }
 
@@ -233,8 +236,6 @@ LOGGING = {
         }
     }
 }
-
-
 
 
 
