@@ -7,6 +7,8 @@ import datetime # Import datetime
 import uuid # Import UUID for access tokens
 import os # Import os for path joining
 import logging # Import the logging library
+from cloudinary.models import CloudinaryField
+
 
 logger = logging.getLogger(__name__) # Get a logger instance for this module
 
@@ -169,17 +171,18 @@ class CapsuleContent(models.Model):
         blank=True, null=True,
         help_text="Text content for 'text' type capsules. Null for file-based content."
     )
-    file = models.FileField(
-        upload_to=user_capsule_content_path, 
-        blank=True, null=True,
-        # Validators for common media and document file extensions
+    file = CloudinaryField(
+        'file',  # This is the verbose name, often used as a default public_id prefix if not specified
+        blank=True,
+        null=True,
+        resource_type='auto', # Cloudinary will auto-detect based on file type
         validators=[
             FileExtensionValidator(
                 allowed_extensions=[
-                    'jpg', 'jpeg', 'png', 'gif', 'webp', '.bmp', '.tiff', # Images
-                    'mp4', 'avi', 'mov', 'webm',  '.mkv', '.flv', '.wmv', # Videos
-                    'mp3', 'wav', 'ogg', 'm4a', '.flac', '.aac', '.wma',  # Audio
-                    'pdf', 'doc', 'docx', 'txt', 'rtf', '.odt', '.epub'# Documents
+                    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', # Images
+                    'mp4', 'avi', 'mov', 'webm', 'mkv', 'flv', 'wmv', # Videos
+                    'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma', # Audio
+                    'pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'epub' # Documents
                 ]
             )
         ],
@@ -224,6 +227,12 @@ class CapsuleContent(models.Model):
 
     def __str__(self):
         return f"Content for Capsule '{self.capsule.title}' ({self.content_type})"
+    
+    @property
+    def file_url(self):
+        if self.file:
+            return self.file.url
+        return None
 
 
 

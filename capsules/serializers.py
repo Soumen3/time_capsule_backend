@@ -13,9 +13,15 @@ class CapsuleRecipientSerializer(serializers.ModelSerializer):
         fields = ['recipient_email', 'received_status'] # Add other fields if needed for response
 
 class CapsuleContentSerializer(serializers.ModelSerializer):
+    file_url = serializers.ReadOnlyField()
     class Meta:
         model = CapsuleContent
-        fields = ['id', 'content_type', 'text_content', 'file', 'upload_date', 'order']
+        fields = ['id', 'content_type', 'text_content', 'file', 'upload_date', 'order', "file_url"]
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # representation.pop("file")  # <-- Remove this line to include 'file' in response
+        return representation
 
 
 class CapsuleSerializer(serializers.ModelSerializer):
@@ -26,6 +32,7 @@ class CapsuleSerializer(serializers.ModelSerializer):
     media_files = serializers.ListField(
         child=serializers.FileField(), write_only=True, required=False
     )
+    
     recipient_email = serializers.EmailField(write_only=True, required=True) # Assuming one recipient for now
 
     # To include related objects in the response (read-only)
@@ -141,10 +148,16 @@ class CapsuleSerializer(serializers.ModelSerializer):
 # --- Serializers for Public Capsule View ---
 
 class PublicCapsuleContentSerializer(serializers.ModelSerializer):
+    file_url = serializers.ReadOnlyField()
     class Meta:
         model = CapsuleContent
-        fields = ['id', 'content_type', 'text_content', 'file', 'order'] # Exclude upload_date for public?
+        fields = ['id', 'content_type', 'text_content', 'file', 'order', 'file_url'] # Exclude upload_date for public?
         read_only_fields = fields
+    
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # representation.pop("file")  # <-- Remove this line to include 'file' in response
+        return representation
 
 class PublicCapsuleOwnerSerializer(serializers.Serializer): # Simple serializer for owner's name
     name = serializers.CharField()
@@ -191,4 +204,5 @@ class NotificationSerializer(serializers.ModelSerializer):
             'capsule', # Send capsule ID
             'capsule_title'
         ]
+        read_only_fields = ['id', 'created_at', 'read_at', 'capsule_title']
         read_only_fields = ['id', 'created_at', 'read_at', 'capsule_title']

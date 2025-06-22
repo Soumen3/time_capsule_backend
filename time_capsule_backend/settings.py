@@ -14,6 +14,23 @@ from pathlib import Path
 import os
 from decouple import config
 from urllib.parse import urlparse
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'your_cloud_name',
+    'API_KEY': 'your_api_key',
+    'API_SECRET': 'your_api_secret',
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# Optional: If you want to use Cloudinary for static files (not common)
+# STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticHashedCloudinaryStorage'
+
+MEDIA_URL = '/media/'  # This is still needed for Django URLs, even though Cloudinary handles storage
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,7 +56,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',  # Add this
     'django.contrib.staticfiles',
+    'cloudinary', 
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders', 
@@ -240,31 +259,24 @@ LOGGING = {
 
 
 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-AWS_ACCESS_KEY_ID = config('IAM_USER_ACCESS_KEY')
-AWS_SECRET_ACCESS_KEY = config('IAM_USER_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = config('S3BUCKET_NAME')
-AWS_S3_REGION_NAME = config('REGION')  # e.g., 'us-west-2'
-AWS_QUERYSTRING_AUTH = False  # Optional: to make the URLs public
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-STORAGES = {
-    'default': {
-        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
-        'OPTIONS': {
-            'access_key': AWS_ACCESS_KEY_ID,
-            'secret_key': AWS_SECRET_ACCESS_KEY,
-            'bucket_name': AWS_STORAGE_BUCKET_NAME,
-            'region_name': AWS_S3_REGION_NAME,
-        },
-    },
-    'staticfiles': {
-        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
-    },
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': config('CLOUDINARY_API_KEY'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET'),
 }
 
-# Ensure MEDIA_URL is set to the S3 bucket URL
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
-MEDIA_ROOT = BASE_DIR / "media"
+
+cloudinary.config(
+    cloud_name=config('CLOUDINARY_CLOUD_NAME'),
+    api_key=config('CLOUDINARY_API_KEY'),
+    api_secret=config('CLOUDINARY_API_SECRET'),
+)
+
+MEDIA_URL = '/media/'
+
+# MEDIA_ROOT = BASE_DIR / "media"
 
 
 OTPOTP_VALIDITY_DURATION_SECONDS = 600
