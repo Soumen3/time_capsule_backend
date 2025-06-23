@@ -201,7 +201,8 @@ GOOGLE_CLIENT_ID = config('VITE_GOOGLE_CLIENT_ID', default=None) # Or a separate
 
 # Celery Configuration Options
 # Make sure your Redis server is running
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Using Redis as the broker
+CELERY_BROKER_URL = config('CELERY_BROKER_URL')  # Using Redis as the broker
+
 # CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # Using Redis for results backend
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

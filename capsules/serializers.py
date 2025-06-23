@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Capsule, CapsuleContent, CapsuleRecipient, CapsuleContentType, CapsuleRecipientStatus, Notification
 from django.utils import timezone
 from .tasks import deliver_capsule_email_task
+from django.db import transaction
 import datetime
 import logging
 
@@ -69,14 +70,11 @@ class CapsuleSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         owner = self.context['request'].user
-        
         media_files_data = validated_data.pop('media_files', [])
         text_content_data = validated_data.pop('text_content', None)
         recipient_email_data = validated_data.pop('recipient_email')
-
         delivery_date = validated_data.get('delivery_date')
         delivery_time = validated_data.get('delivery_time')
-        
         eta_datetime_utc = None
         if delivery_date and delivery_time:
             try:
@@ -94,56 +92,75 @@ class CapsuleSerializer(serializers.ModelSerializer):
 
             except Exception as e:
                 logger.error(f"Error creating delivery datetime: {e}")
-                # Decide how to handle this - perhaps don't schedule or raise error
 
-        # Create the capsule instance
-        capsule = Capsule.objects.create(owner=owner, **validated_data)
+        try:
+            with transaction.atomic():
+                # Create the capsule instance
+                capsule = Capsule.objects.create(owner=owner, **validated_data)
 
-        # Create CapsuleContent for the text message if provided
-        if text_content_data:
-            CapsuleContent.objects.create(
-                capsule=capsule,
-                content_type=CapsuleContentType.TEXT,
-                text_content=text_content_data,
-                order=0 # Assuming text content is first
-            )
+                # Create CapsuleContent for the text message if provided
+                if text_content_data:
+                    CapsuleContent.objects.create(
+                        capsule=capsule,
+                        content_type=CapsuleContentType.TEXT,
+                        text_content=text_content_data,
+                        order=0 # Assuming text content is first
+                    )
 
-        # Create CapsuleContent for each uploaded media file
-        file_order_start = 1 if text_content_data else 0
-        for index, file_data in enumerate(media_files_data):
-            content_type = self.get_file_content_type(file_data)
-            CapsuleContent.objects.create(
-                capsule=capsule,
-                content_type=content_type,
-                file=file_data,
-                order=file_order_start + index
-            )
-        
-        recipient_obj = CapsuleRecipient.objects.create(
-            capsule=capsule,
-            recipient_email=recipient_email_data
-        )
-
-        # Schedule the Celery task for email delivery
-        current_time_utc = timezone.now().astimezone(datetime.timezone.utc)
-        
-        if eta_datetime_utc:
-            if eta_datetime_utc > current_time_utc:
-                deliver_capsule_email_task.apply_async(
-                    args=[capsule.id, recipient_obj.id],
-                    eta=eta_datetime_utc
+                # Create CapsuleContent for each uploaded media file
+                file_order_start = 1 if text_content_data else 0
+                for index, file_data in enumerate(media_files_data):
+                    content_type = self.get_file_content_type(file_data)
+                    CapsuleContent.objects.create(
+                        capsule=capsule,
+                        content_type=content_type,
+                        file=file_data,
+                        order=file_order_start + index
+                    )
+                
+                recipient_obj = CapsuleRecipient.objects.create(
+                    capsule=capsule,
+                    recipient_email=recipient_email_data
                 )
-                logger.info(f"Capsule ID {capsule.id} delivery scheduled for {eta_datetime_utc} (UTC) to {recipient_obj.recipient_email}")
-            else: # ETA is in the past or now
-                deliver_capsule_email_task.apply_async(
-                    args=[capsule.id, recipient_obj.id],
-                    countdown=10 # Execute in 10 seconds for past/current ETAs
-                )
-                logger.info(f"Capsule ID {capsule.id} delivery ETA {eta_datetime_utc} (UTC) is past/now. Scheduled for near-immediate delivery to {recipient_obj.recipient_email}")
-        else:
-            logger.warning(f"Capsule ID {capsule.id} has no valid delivery date/time for scheduling email.")
 
-        return capsule
+                # Schedule the Celery task for email delivery
+                current_time_utc = timezone.now().astimezone(datetime.timezone.utc)
+                
+                if eta_datetime_utc:
+                    if eta_datetime_utc > current_time_utc:
+                        try:
+                            deliver_capsule_email_task.apply_async(
+                                args=[capsule.id, recipient_obj.id],
+                                eta=eta_datetime_utc
+                        )
+                            logger.info(f"Capsule ID {capsule.id} delivery scheduled for {eta_datetime_utc} (UTC) to {recipient_obj.recipient_email}")
+                        except Exception as e:
+                            logger.error(f"Error scheduling delivery task: {e}")
+                            raise
+                    else:
+                        try:
+                            deliver_capsule_email_task.apply_async(
+                                args=[capsule.id, recipient_obj.id],
+                                countdown=10 # Execute in 10 seconds for past/current ETAs
+                            )
+                            logger.info(f"Capsule ID {capsule.id} delivery ETA {eta_datetime_utc} (UTC) is past/now. Scheduled for near-immediate delivery to {recipient_obj.recipient_email}")
+                        except Exception as e:
+                            logger.error(f"Error scheduling immediate delivery task: {e}")
+                            raise
+                else:
+                    logger.warning(f"Capsule ID {capsule.id} has no valid delivery date/time for scheduling email.")
+
+                return capsule
+        except Exception as e:
+            logger.error(f"Error during capsule creation or scheduling, cleaning up: {e}")
+            # Attempt to delete the capsule and related objects if created
+            try:
+                if 'capsule' in locals():
+                    capsule.delete()
+                    logger.info(f"Deleted capsule ID {capsule.id} due to error during creation/scheduling.")
+            except Exception as cleanup_error:
+                logger.error(f"Error during cleanup after failed capsule creation: {cleanup_error}")
+            raise serializers.ValidationError("Failed to create capsule or schedule delivery. Please try again.")
 
 # --- Serializers for Public Capsule View ---
 
