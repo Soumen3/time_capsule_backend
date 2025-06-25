@@ -24,9 +24,11 @@ django_celery_results==2.6.0
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 google-auth==2.40.3
+gunicorn==23.0.0
 idna==3.10
 jmespath==1.0.1
 kombu==5.5.3
+packaging==25.0
 pillow==11.2.1
 prompt_toolkit==3.0.51
 psycopg2-binary==2.9.10
