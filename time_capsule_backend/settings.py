@@ -40,12 +40,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&-!a2ozdxfps(j^ou82v_hfa8w*1pxj_05-_qcbu3wogl61s37'
+SECRET_KEY = config('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -151,6 +151,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Collect static files here
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -211,10 +212,11 @@ CELERY_TIMEZONE = TIME_ZONE # Use Django's timezone
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler' # If you use Celery Beat for periodic tasks
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_RESULT_EXTENDED= True  # Store extended results in the database
+CELERY_BROKER_POOL_LIMIT = None
 
 
 # LOGGING CONFIGURATION
-DISABLE_LOGGING = False
+DISABLE_LOGGING = True
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
